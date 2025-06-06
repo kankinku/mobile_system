@@ -21,6 +21,9 @@ DB_CONFIG = {
     'database': os.getenv('DB_NAME', 'appointment_db'),
     'charset': 'utf8mb4'
 }
+WEB_SERVER_URL = os.getenv("WEB_SERVER_URL")
+WEB_SERVER_PORT = os.getenv("WEB_SERVER_PORT")
+web_server_url = f"http://{WEB_SERVER_URL}:{WEB_SERVER_PORT}/api/voice-result"
 
 # ========== 시스템 클래스 ==========
 class GPT:
@@ -130,14 +133,27 @@ class Weather:
         except:
             return "맑은 날씨, 기온 20°C"
 
+# ========== 유틸 함수 ==========
+def send_to_web_server(payload):
+    try:
+        requests.post(web_server_url, json=payload, timeout=3)
+    except Exception as e:
+        print(f"⚠️ 웹 서버 전송 실패: {e}")
+
 # ========== Flask 앱서버 ==========
 app = Flask(__name__)
 db = Database()
 gpt = GPT(api_key=OPENAI_API_KEY)
 weather = Weather()
+accepting_requests = True
 
 @app.route('/api/voice', methods=['POST'])
 def handle_voice():
+    global accepting_requests
+    if not accepting_requests:
+        print("⏸️ 서버가 일시중지 상태입니다. 재개합니다.")
+        accepting_requests = True  # 새 요청이 들어오면 자동 재개
+
     data = request.get_json()
     if not data or 'recognized_text' not in data:
         return jsonify({"status": "error", "message": "recognized_text 필요"}), 400
@@ -148,6 +164,7 @@ def handle_voice():
     return jsonify({"status": "ok", "message": "처리 중"}), 200
 
 def process_input(user_input):
+    global accepting_requests
     try:
         intent_prompt = """사용자의 입력을 분석하여 다음 중 하나로 분류:
 1. add_appointment
@@ -176,16 +193,27 @@ JSON으로 반환: {"intent": "...", "confidence": 0.9, "extracted_data": "..."}
             db.insert_appointment(data)
             print("✅ 일정이 저장되었습니다.")
             print(json.dumps(data, indent=2, ensure_ascii=False))
+            send_to_web_server({"type": "add", "data": data})
 
         elif intent == "view_summary":
             rows = db.get_today_appointments()
             if not rows:
                 print("📋 오늘은 일정이 없습니다.")
+                send_to_web_server({"type": "view", "data": []})
                 return
             print("📋 오늘의 일정:")
+            result = []
             for i, row in enumerate(rows, 1):
                 function_type, name, start, end, items = row
                 print(f"{i}. {name} ({start}{' ~ ' + end if end else ''}) - 준비물: {items or '없음'}")
+                result.append({
+                    "사용기능": function_type,
+                    "이름": name,
+                    "시간": start,
+                    "목표시간": end,
+                    "준비물": items
+                })
+            send_to_web_server({"type": "view", "data": result})
 
         elif intent == "cleanup_appointments":
             print("🧹 정리 기능은 추후 구현 가능")
@@ -201,9 +229,8 @@ JSON으로 반환: {"intent": "...", "confidence": 0.9, "extracted_data": "..."}
                 rpi_port = os.getenv("RASPBERRY_PI_PORT", "5000")
                 requests.post(f"http://{rpi_ip}:{rpi_port}/voice-stop", timeout=3)
                 print("✅ 라즈베리파이에 음성 인식 종료 요청 전송 완료")
-            except Exception as e:
-                print(f"❌ 종료 신호 전송 실패: {e}")
-                print("✅ 라즈베리파이에 종료 요청 전송 완료")
+                send_to_web_server({"type": "exit", "message": "음성 인식이 종료되었습니다."})
+                accepting_requests = False
             except Exception as e:
                 print(f"❌ 종료 신호 전송 실패: {e}")
 
@@ -227,7 +254,8 @@ if __name__ == '__main__':
     @app.route('/shutdown-server', methods=['POST'])
     def shutdown_server():
         print("📴 라즈베리파이로부터 서버 종료 신호 수신")
-        shutdown_handler(None, None)
+        global accepting_requests
+        accepting_requests = False
         return "서버 종료됨", 200
 
     port = int(os.getenv("APP_SERVER_PORT", 8080))
