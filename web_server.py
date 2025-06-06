@@ -1,8 +1,59 @@
 from flask import Flask, request, jsonify, send_from_directory
 import time
 import os
+import sqlite3
+import json
 
 app = Flask(__name__, static_folder='WEB_STATIC', static_url_path='')
+
+# ---------------------------
+# SQLite 데이터베이스 설정
+# ---------------------------
+DB_PATH = os.path.join(os.path.dirname(__file__), 'web_server.db')
+conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+cur = conn.cursor()
+cur.execute('''
+    CREATE TABLE IF NOT EXISTS distance_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        current_distance REAL,
+        initial_distance REAL,
+        distance_difference REAL,
+        elapsed_time REAL,
+        source TEXT,
+        timestamp REAL
+    )
+''')
+cur.execute('''
+    CREATE TABLE IF NOT EXISTS schedules (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        data TEXT,
+        timestamp REAL
+    )
+''')
+conn.commit()
+
+def load_initial_state():
+    """서버 재시작 시 DB에서 최근 데이터 로드"""
+    cur.execute(
+        'SELECT current_distance, initial_distance, distance_difference, '
+        'elapsed_time, source, timestamp '
+        'FROM distance_logs ORDER BY timestamp DESC LIMIT 1'
+    )
+    row = cur.fetchone()
+    if row:
+        distance_state.update({
+            'current_distance': row[0],
+            'initial_distance': row[1],
+            'distance_difference': row[2],
+            'elapsed_time': row[3],
+            'source': row[4],
+            'timestamp': row[5]
+        })
+    cur.execute('SELECT data FROM schedules ORDER BY timestamp DESC LIMIT 10')
+    rows = cur.fetchall()
+    schedule_list[:] = [json.loads(r[0]) for r in rows]
+
+load_initial_state()
 
 # 최근 데이터 저장용 간단한 메모리 버퍼
 distance_state = {}
@@ -20,10 +71,31 @@ def log_api(endpoint, status=200):
 @app.route('/api/state', methods=['GET'])
 def state():
     """현재 저장된 데이터 반환"""
+    # DB에서 최신 값 조회
+    cur.execute(
+        'SELECT current_distance, initial_distance, distance_difference, '
+        'elapsed_time, source, timestamp '
+        'FROM distance_logs ORDER BY timestamp DESC LIMIT 1'
+    )
+    row = cur.fetchone()
+    latest_distance = distance_state
+    if row:
+        latest_distance = {
+            'current_distance': row[0],
+            'initial_distance': row[1],
+            'distance_difference': row[2],
+            'elapsed_time': row[3],
+            'source': row[4],
+            'timestamp': row[5]
+        }
+    cur.execute('SELECT data FROM schedules ORDER BY timestamp DESC LIMIT 10')
+    rows = cur.fetchall()
+    schedules = [json.loads(r[0]) for r in rows]
+
     return jsonify({
-        'distance': distance_state,
+        'distance': latest_distance,
         'api_log': api_log,
-        'schedule': schedule_list,
+        'schedule': schedules,
         'logs': server_log
     })
 
@@ -44,6 +116,21 @@ def receive_distance():
         'source': data.get('source'),
         'timestamp': time.time()
     })
+
+    # DB 저장
+    cur.execute(
+        'INSERT INTO distance_logs (current_distance, initial_distance, '
+        'distance_difference, elapsed_time, source, timestamp) VALUES (?, ?, ?, ?, ?, ?)',
+        (
+            distance_state.get('current_distance'),
+            distance_state.get('initial_distance'),
+            distance_state.get('distance_difference'),
+            distance_state.get('elapsed_time'),
+            distance_state.get('source'),
+            distance_state.get('timestamp')
+        )
+    )
+    conn.commit()
 
     log_api('distance')
     msg = (
@@ -71,7 +158,13 @@ def receive_voice_result():
     if data_type == "add":
         print("[웹서버] 일정 추가 수신:")
         print(data.get("data"))
-        schedule_list.append(data.get("data"))
+        item = data.get("data")
+        schedule_list.append(item)
+        cur.execute(
+            'INSERT INTO schedules (data, timestamp) VALUES (?, ?)',
+            (json.dumps(item, ensure_ascii=False), time.time())
+        )
+        conn.commit()
         server_log.append("schedule added")
 
     elif data_type == "view":
@@ -79,6 +172,12 @@ def receive_voice_result():
         for entry in data.get("data", []):
             print(entry)
         schedule_list[:] = data.get("data", [])
+        for entry in data.get("data", []):
+            cur.execute(
+                'INSERT INTO schedules (data, timestamp) VALUES (?, ?)',
+                (json.dumps(entry, ensure_ascii=False), time.time())
+            )
+        conn.commit()
         server_log.append("schedule view")
 
     elif data_type == "exit":
