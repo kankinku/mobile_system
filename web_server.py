@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify, send_from_directory
 import time
 import os
 
-app = Flask(__name__, static_folder='WEB_STATIC', static_url_path='')
+app = Flask(__name__, static_folder='web-server', static_url_path='')
 
 # 최근 데이터 저장용 간단한 메모리 버퍼
 distance_state = {}
