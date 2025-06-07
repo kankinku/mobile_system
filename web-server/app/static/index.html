@@ -10,6 +10,22 @@
       const data = await res.json();
       renderSchedule(data.schedule);
       renderLogs(data.logs);
+      adjustFontSize(data.distance?.distance_difference);
+    }
+
+    function adjustFontSize(diff) {
+      if (typeof diff !== 'number') return;
+
+      const minDiff = -40;
+      const maxDiff = 80;
+      const minFontSize = 12;
+      const maxFontSize = 36;
+
+      const clamped = Math.max(minDiff, Math.min(maxDiff, diff));
+      const ratio = (clamped - minDiff) / (maxDiff - minDiff);
+      const fontSize = minFontSize + ratio * (maxFontSize - minFontSize);
+
+      document.documentElement.style.setProperty('--dynamic-font-size', `${fontSize}px`);
     }
 
     function renderSchedule(schedules) {
@@ -64,7 +80,7 @@
       .then(res => res.json())
       .then(data => {
         if (data.status === 'ok') {
-          alert('일정이 삭제되었습니다.');
+          alert(data.message);
           fetchState();
         } else {
           alert('삭제 실패: ' + data.message);
@@ -73,14 +89,19 @@
     }
 
     window.onload = fetchState;
-    setInterval(fetchState, 10000); // 10초마다 자동 갱신
+    setInterval(fetchState, 1000); // 1초마다 갱신
   </script>
   <style>
+    :root {
+      --dynamic-font-size: 16px;
+    }
     body {
       font-family: sans-serif;
+      font-size: var(--dynamic-font-size);
       background: #f9fafb;
       padding: 2rem;
       color: #111;
+      transition: font-size 0.3s ease;
     }
     h1 {
       font-size: 2rem;
