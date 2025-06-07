@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>회의 관리 대시보드</title>
+  <script defer>
+    async function fetchState() {
+      const res = await fetch('/api/state');
+      const data = await res.json();
+      renderSchedule(data.schedule);
+      renderLogs(data.logs);
+    }
+
+    function renderSchedule(schedules) {
+      const container = document.getElementById('schedule');
+      container.innerHTML = '';
+      if (schedules.length === 0) {
+        container.innerHTML = '<p>오늘은 예정된 회의가 없습니다.</p>';
+        return;
+      }
+
+      schedules.forEach(s => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+          <h3>${s.title}</h3>
+          <p><strong>시간:</strong> ${s.time}</p>
+          <p><strong>장소:</strong> ${s.location}</p>
+          <p><strong>기간:</strong> ${s.duration || 60}분</p>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function renderLogs(logs) {
+      const container = document.getElementById('logs');
+      container.innerHTML = '';
+      if (logs.length === 0) {
+        container.innerHTML = '<p>로그가 없습니다.</p>';
+        return;
+      }
+      logs.slice().reverse().forEach(log => {
+        const item = document.createElement('div');
+        item.className = 'log';
+        item.textContent = log;
+        container.appendChild(item);
+      });
+    }
+
+    window.onload = fetchState;
+    setInterval(fetchState, 10000); // 10초마다 자동 갱신
+  </script>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #f9fafb;
+      padding: 2rem;
+      color: #111;
+    }
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 1rem;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 2rem;
+    }
+    .card {
+      background: white;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      border: 1px solid #ddd;
+      border-left: 4px solid #0ea5e9;
+      border-radius: 0.5rem;
+    }
+    .log {
+      background: #f1f5f9;
+      padding: 0.5rem;
+      margin-bottom: 0.5rem;
+      border-left: 3px solid #6b7280;
+      border-radius: 0.3rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>회의 관리 대시보드</h1>
+  <div class="grid">
+    <div>
+      <h2>🗓️ 오늘의 회의 일정</h2>
+      <div id="schedule"></div>
+    </div>
+    <div>
+      <h2>📜 시스템 로그</h2>
+      <div id="logs"></div>
+    </div>
+  </div>
+</body>
+</html>

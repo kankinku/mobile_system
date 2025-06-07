@@ -282,7 +282,7 @@ class VoiceStopGestureRecognizer:
             try:
                 with self.microphone as source:
                     print("🎤 음성 입력 대기 중... (5초 타임아웃)")
-                    audio = self.recognizer.listen(source, timeout=5, phrase_time_limit=10)
+                    audio = self.recognizer.listen(source, timeout=10, phrase_time_limit=10)
 
                 print("🔄 음성 처리 중...")
                 text = self.recognizer.recognize_google(audio, language='ko-KR')
