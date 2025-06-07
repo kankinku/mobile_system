@@ -36,3 +36,26 @@ def receive_voice_result():
         del server_log[0]
 
     return jsonify({"status": "ok", "message": "Voice result received"}), 200
+
+@bp.route('/delete', methods=['POST'])
+def delete_schedule():
+    from app.services.memory_store import schedule_list
+    data = request.get_json()
+    title = data.get('title')
+
+    if not title:
+        return jsonify({'status': 'error', 'message': '제목이 필요합니다.'}), 400
+
+    # 일정 제거
+    original_len = len(schedule_list)
+    schedule_list[:] = [s for s in schedule_list if s.get('이름') != title and s.get('title') != title]
+    
+    if len(schedule_list) == original_len:
+        return jsonify({'status': 'error', 'message': '일정이 존재하지 않습니다.'}), 404
+
+    from app.services.logger import log_api
+    from app.services.memory_store import server_log
+    server_log.append(f"일정 삭제됨: {title}")
+    log_api('/api/delete')
+
+    return jsonify({'status': 'ok', 'message': f'{title} 삭제됨'}), 200

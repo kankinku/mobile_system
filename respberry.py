@@ -271,8 +271,12 @@ class VoiceStopGestureRecognizer:
         self.voice_loop_thread.start()
 
     def _voice_loop_thread(self):
-        """음성 인식 루프 스레드[4]"""
+        """음성 인식 루프 스레드"""
         loop_count = 0
+        print(f"🔁 음성 루프 스레드 진입")
+
+        # pause_threshold 조정 (말 멈추는 간격 여유롭게)
+        self.recognizer.pause_threshold = 2.0
 
         while self.voice_loop_active and not self.voice_stop_signal_received:
             loop_count += 1
@@ -281,8 +285,8 @@ class VoiceStopGestureRecognizer:
 
             try:
                 with self.microphone as source:
-                    print("🎤 음성 입력 대기 중... (5초 타임아웃)")
-                    audio = self.recognizer.listen(source, timeout=10, phrase_time_limit=10)
+                    print("🎤 음성 입력 대기 중... (입력 시작까지 무한 대기, 최대 30초 말 가능)")
+                    audio = self.recognizer.listen(source, timeout=None, phrase_time_limit=30)
 
                 print("🔄 음성 처리 중...")
                 text = self.recognizer.recognize_google(audio, language='ko-KR')
@@ -312,6 +316,7 @@ class VoiceStopGestureRecognizer:
         self.mode = 'motion'
         print("🔄 음성 루프 종료 - 모션 인식 모드로 복귀")
         time.sleep(0.3)
+
 
     def send_voice_to_app_server(self, text):
         """음성 인식 결과를 앱서버로 전송[1]"""

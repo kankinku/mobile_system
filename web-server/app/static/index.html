@@ -21,11 +21,16 @@
       }
 
       schedules.forEach(s => {
+        const startTime = new Date(`1970-01-01T${s.time}`);
+        const endTime = new Date(startTime.getTime() + (s.duration || 60) * 60000);
+        const formatTime = t => `${t.getHours().toString().padStart(2, '0')}:${t.getMinutes().toString().padStart(2, '0')}`;
+
         const card = document.createElement('div');
         card.className = 'card';
         card.innerHTML = `
+          <button class="delete-btn" onclick="deleteSchedule('${s.title}')">삭제</button>
           <h3>${s.title}</h3>
-          <p><strong>시간:</strong> ${s.time}</p>
+          <p><strong>시간:</strong> ${formatTime(startTime)} ~ ${formatTime(endTime)}</p>
           <p><strong>장소:</strong> ${s.location}</p>
           <p><strong>기간:</strong> ${s.duration || 60}분</p>
         `;
@@ -40,11 +45,30 @@
         container.innerHTML = '<p>로그가 없습니다.</p>';
         return;
       }
-      logs.slice().reverse().forEach(log => {
+      logs.slice(-10).reverse().forEach(log => {
         const item = document.createElement('div');
         item.className = 'log';
         item.textContent = log;
         container.appendChild(item);
+      });
+    }
+
+    function deleteSchedule(title) {
+      if (!confirm(`"${title}" 일정을 삭제하시겠습니까?`)) return;
+
+      fetch('/api/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'ok') {
+          alert('일정이 삭제되었습니다.');
+          fetchState();
+        } else {
+          alert('삭제 실패: ' + data.message);
+        }
       });
     }
 
@@ -74,6 +98,7 @@
       border: 1px solid #ddd;
       border-left: 4px solid #0ea5e9;
       border-radius: 0.5rem;
+      position: relative;
     }
     .log {
       background: #f1f5f9;
@@ -81,6 +106,21 @@
       margin-bottom: 0.5rem;
       border-left: 3px solid #6b7280;
       border-radius: 0.3rem;
+    }
+    .delete-btn {
+      position: absolute;
+      top: 0.75rem;
+      right: 0.75rem;
+      background: #ef4444;
+      border: none;
+      color: white;
+      padding: 0.3rem 0.6rem;
+      border-radius: 5px;
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+    .delete-btn:hover {
+      background: #dc2626;
     }
   </style>
 </head>
