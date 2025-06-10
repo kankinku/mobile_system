@@ -167,12 +167,12 @@ def process_input(user_input):
     global accepting_requests
     try:
         intent_prompt = """사용자의 입력을 분석하여 다음 중 하나로 분류:
-1. add_appointment
-2. view_summary
-3. cleanup_appointments
-4. reset_database
-5. exit
-JSON으로 반환: {"intent": "...", "confidence": 0.9, "extracted_data": "..."}"""
+                            1. add_appointment
+                            2. view_summary
+                            3. cleanup_appointments
+                            4. reset_database
+                            5. exit
+                            JSON으로 반환: {"intent": "...", "confidence": 0.9, "extracted_data": "..."}"""
         intent_result = gpt.chat(intent_prompt, user_input)
         intent_data = json.loads(intent_result)
         intent = intent_data.get("intent")
@@ -180,14 +180,14 @@ JSON으로 반환: {"intent": "...", "confidence": 0.9, "extracted_data": "..."}
 
         if intent == "add_appointment":
             classification_prompt = f"""입력을 다음과 같이 분류:
-{{
-    "사용기능": "기능명",
-    "이름": "이름",
-    "시간": "HH:MM",
-    "목표시간": "HH:MM",
-    "준비물": "필요 준비물"
-}}
-현재 날씨: {weather.get_weather_info()}"""
+            {{
+                "사용기능": "기능명",
+                "이름": "이름",
+                "시간": "HH:MM",
+                "목표시간": "HH:MM",
+                "준비물": "필요 준비물"
+            }}
+            현재 날씨: {weather.get_weather_info()}"""
             classified = gpt.chat(classification_prompt, user_input)
             data = json.loads(classified)
             db.insert_appointment(data)

@@ -27,7 +27,7 @@
 
       document.documentElement.style.setProperty('--dynamic-font-size', `${fontSize}px`);
     }
-
+    
     function renderSchedule(schedules) {
       const container = document.getElementById('schedule');
       container.innerHTML = '';
@@ -37,22 +37,25 @@
       }
 
       schedules.forEach(s => {
-        const startTime = new Date(`1970-01-01T${s.time}`);
-        const endTime = new Date(startTime.getTime() + (s.duration || 60) * 60000);
+        const startTime = new Date(`1970-01-01T${s.시간}`); // 여기 수정
+        const endTime = new Date(`1970-01-01T${s.목표시간}`); // 목표시간 기반으로 변경
+
         const formatTime = t => `${t.getHours().toString().padStart(2, '0')}:${t.getMinutes().toString().padStart(2, '0')}`;
+        const duration = (endTime - startTime) / 60000;
 
         const card = document.createElement('div');
         card.className = 'card';
         card.innerHTML = `
-          <button class="delete-btn" onclick="deleteSchedule('${s.title}')">삭제</button>
-          <h3>${s.title}</h3>
+          <button class="delete-btn" onclick="deleteSchedule('${s.이름}')">삭제</button>
+          <h3>${s.이름}</h3>
           <p><strong>시간:</strong> ${formatTime(startTime)} ~ ${formatTime(endTime)}</p>
-          <p><strong>장소:</strong> ${s.location}</p>
-          <p><strong>기간:</strong> ${s.duration || 60}분</p>
+          <p><strong>장소:</strong> ${s.준비물 || '미정'}</p>
+          <p><strong>기간:</strong> ${duration}분</p>
         `;
         container.appendChild(card);
       });
     }
+
 
     function renderLogs(logs) {
       const container = document.getElementById('logs');
@@ -89,7 +92,7 @@
     }
 
     window.onload = fetchState;
-    setInterval(fetchState, 1000); // 1초마다 갱신
+    setInterval(fetchState, 500); // 1초마다 갱신
   </script>
   <style>
     :root {

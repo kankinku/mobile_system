@@ -189,7 +189,7 @@ class VoiceStopGestureRecognizer:
     def calculate_distance(self, p1, p2):
         """거리 계산[2]"""
         try:
-            return np.linalg.norm(np.array(p1) - np.array(p2))
+            return np.linalg.norm(np.array(p1) - np.array(p2)) #유클리드 거리 계산
         except Exception:
             return 0.0
 
@@ -210,7 +210,6 @@ class VoiceStopGestureRecognizer:
             return float('inf')
 
     def recognize_gesture(self, landmarks):
-        """제스처 인식[2]"""
         if landmarks is None:
             self.gesture_buffer.append(None)
             return None
@@ -351,7 +350,6 @@ class VoiceStopGestureRecognizer:
             self.last_send_time = 0
 
     def process_timed_distance_measurement(self, landmarks):
-        """시간 기반 거리 측정 처리[2]"""
         if not self.measuring_active:
             return
 
